@@ -52,7 +52,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({
 
   const login = () => {
     // Redirect browser to backend OAuth start
-    window.location.href = "/auth/google";
+    window.location.href = "/api/auth/google";
   };
 
   const logout = () => {

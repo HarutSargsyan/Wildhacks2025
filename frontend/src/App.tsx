@@ -34,7 +34,7 @@ export default () => {
           path="/login"
           element={isAuthenticated ? <Navigate to="/" /> : <Login />}
         />
-        <Route path="/callback" element={<CallbackPage />} />
+        <Route path="/auth-callback" element={<CallbackPage />} />
         <Route
           path="/"
           element={
