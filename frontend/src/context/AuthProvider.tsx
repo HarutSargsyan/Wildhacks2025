@@ -7,41 +7,50 @@ import React, {
   ReactNode,
 } from "react";
 import axios from "axios";
+import { Navigate, useNavigate } from "react-router";
 
 export interface User {
-  sub: string; // Auth0 user ID
-  name: string;
+  id: string;
   email: string;
+  name: string;
   picture?: string;
-  // …any other metadata
+  is_onboarded: boolean;
 }
 
 export interface AuthContextType {
-  isAuthenticated: boolean;
   user: User | null;
+  is_onboarded: boolean | undefined;
   token: string | null;
   login: () => void;
-  logout: () => void;
+  logout: () => Promise<void>;
+  completeLogin: (user: User, token: string) => void;
+  setUser: (user: User) => void;
 }
 
-// Create context
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-// Provider
 export const AuthProvider: React.FC<{ children: ReactNode }> = ({
   children,
 }) => {
   const [user, setUser] = useState<User | null>(null);
   const [token, setToken] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const navigate = useNavigate();
 
-  // On mount, fetch session
+  // On mount, check if already logged in via session cookie
   useEffect(() => {
     axios
-      .get<{ user: User; token: string }>("/auth/me", { withCredentials: true })
+      .get<{ user: User; token: string }>("http://localhost:5001/auth/me", {
+        withCredentials: true,
+      })
       .then((res) => {
         setUser(res.data.user);
+        console.log("user after update ", res.data.user);
         setToken(res.data.token);
+
+        if (!res.data.user.is_onboarded) {
+          navigate("/onboarding");
+        }
       })
       .catch(() => {
         setUser(null);
@@ -51,21 +60,31 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({
   }, []);
 
   const login = () => {
-    // Redirect browser to backend OAuth start
-    window.location.href = "/api/auth/google";
+    window.location.href =
+      "http://localhost:5001/api/auth/google?redirect=http://localhost:5173/auth-callback";
   };
 
-  const logout = () => {
-    axios
-      .post("/auth/logout", {}, { withCredentials: true })
-      .then(() => {
-        setUser(null);
-        setToken(null);
-      })
-      .catch(console.error);
+  const logout = async () => {
+    await axios.post(
+      "http://localhost:5001/auth/logout",
+      {},
+      { withCredentials: true }
+    );
+    setUser(null);
+    setToken(null);
   };
 
-  // While we’re loading session, don’t render children
+  /**
+   * Called by CallbackPage after parsing the ?data= payload
+   * from your Flask redirect.
+   */
+  const completeLogin = (loggedInUser: User, authToken: string) => {
+    setUser(loggedInUser);
+    setToken(authToken);
+    // Optionally persist token in localStorage:
+    // localStorage.setItem("token", authToken);
+  };
+
   if (loading) {
     return <div>Loading authentication…</div>;
   }
@@ -73,11 +92,13 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({
   return (
     <AuthContext.Provider
       value={{
-        isAuthenticated: !!user,
         user,
         token,
         login,
         logout,
+        completeLogin,
+        setUser: setUser,
+        is_onboarded: user?.is_onboarded,
       }}
     >
       {children}
@@ -85,11 +106,8 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({
   );
 };
 
-// Custom hook
 export function useAuth(): AuthContextType {
   const ctx = useContext(AuthContext);
-  if (!ctx) {
-    throw new Error("useAuth must be used within AuthProvider");
-  }
+  if (!ctx) throw new Error("useAuth must be used within AuthProvider");
   return ctx;
 }

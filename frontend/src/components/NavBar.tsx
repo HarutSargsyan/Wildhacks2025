@@ -5,7 +5,7 @@ import { useAuth } from "../context/AuthProvider";
 import { FaUserCircle } from "react-icons/fa";
 
 const Navbar: React.FC = () => {
-  const { isAuthenticated, user, login, logout } = useAuth();
+  const { user, login, logout } = useAuth();
   const navigate = useNavigate();
 
   const handleLogout = async () => {
@@ -20,27 +20,14 @@ const Navbar: React.FC = () => {
   return (
     <nav className="bg-white shadow">
       <div className="container mx-auto px-6 py-4 flex justify-between items-center">
-        {/* Logo / Brand */}
         <Link to="/" className="flex items-center space-x-2">
           <div className="w-8 h-8 bg-black rounded-full" />
           <span className="font-bold text-xl">NightSpot</span>
         </Link>
 
-        {/* Nav Links */}
-        <div className="flex items-center space-x-6">
-          <Link to="/about" className="text-gray-600 hover:text-black">
-            About
-          </Link>
-          <Link to="/contact" className="text-gray-600 hover:text-black">
-            Contact
-          </Link>
-        </div>
-
-        {/* Auth Buttons */}
         <div className="flex items-center space-x-4">
-          {isAuthenticated ? (
+          {user ? (
             <>
-              {/* Optional: show user avatar/name */}
               <div className="flex items-center space-x-2">
                 <FaUserCircle className="text-2xl text-gray-600" />
                 <span className="text-gray-700">{user?.name}</span>

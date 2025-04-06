@@ -12,14 +12,15 @@ import Login from "./pages/Login";
 import CallbackPage from "./pages/Callback";
 import RequestForm from "./pages/RequestForm"; // your protected UI
 import Navbar from "./components/NavBar";
+import PersonalInfo from "./pages/PersonalInfo";
 
 export default () => {
-  const { isAuthenticated } = useAuth();
+  const { user } = useAuth();
 
   function PrivateRoute({ children }: { children: React.ReactElement }) {
     const location = useLocation();
 
-    if (!isAuthenticated) {
+    if (!user) {
       return (
         <Navigate to="/login" state={{ from: location.pathname }} replace />
       );
@@ -27,24 +28,33 @@ export default () => {
     return children;
   }
   return (
-    <BrowserRouter>
+    <>
       <Navbar />
       <Routes>
-        <Route
-          path="/login"
-          element={isAuthenticated ? <Navigate to="/" /> : <Login />}
-        />
+        <Route path="/login" element={user ? <Navigate to="/" /> : <Login />} />
         <Route path="/auth-callback" element={<CallbackPage />} />
+        <Route
+          path="/onboarding"
+          element={
+            <PrivateRoute>
+              <PersonalInfo />
+            </PrivateRoute>
+          }
+        />
         <Route
           path="/"
           element={
             <PrivateRoute>
-              <RequestForm />
+              {user?.is_onboarded ? (
+                <RequestForm />
+              ) : (
+                <Navigate to="/onboarding" />
+              )}
             </PrivateRoute>
           }
         />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
-    </BrowserRouter>
+    </>
   );
 };

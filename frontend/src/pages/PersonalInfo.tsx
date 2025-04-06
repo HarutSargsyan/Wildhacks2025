@@ -1,6 +1,9 @@
 // src/components/PersonalInfoForm.tsx
-import React, { useState, ChangeEvent, FormEvent } from "react";
+import React, { useState, ChangeEvent, FormEvent, useEffect } from "react";
 import { FaEdit, FaSave } from "react-icons/fa";
+import { useAuth } from "../context/AuthProvider";
+import axios from "../axi/axios";
+import { useNavigate } from "react-router";
 
 type Gender = "Male" | "Female" | "Non‑binary" | "Other" | "";
 type Race =
@@ -17,6 +20,7 @@ interface PersonalInfo {
   gender: Gender;
   race: Race;
   hometown: string;
+  who: string;
 }
 
 const genderOptions: Gender[] = ["", "Male", "Female", "Non‑binary", "Other"];
@@ -30,27 +34,48 @@ const raceOptions: Race[] = [
   "Other",
 ];
 
-const PersonalInfoForm: React.FC = () => {
+export default () => {
   const [formState, setFormState] = useState<PersonalInfo>({
     age: "",
     gender: "",
     race: "",
     hometown: "",
+    who: "",
   });
+
   const [isEditing, setIsEditing] = useState(false);
 
+  const { setUser, user } = useAuth();
+
+  useEffect(() => {
+    console.log("user ", user?.is_onboarded);
+  }, [user]);
+
+  const navigate = useNavigate();
   const handleChange =
     (key: keyof PersonalInfo) =>
-    (e: ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
+    (
+      e: ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>
+    ) => {
       setFormState((prev) => ({ ...prev, [key]: e.target.value }));
     };
 
   const handleEditToggle = () => setIsEditing((prev) => !prev);
 
-  const handleSubmit = (e: FormEvent) => {
+  const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
-    // TODO: call API to save changes
-    console.log("Saved personal info:", formState);
+
+    const res = await axios.put(
+      `http://localhost:5001/users/${user?.email}`,
+      formState
+    );
+    if (res.status === 200) {
+      console.log("res", res);
+      setUser(res.data.data);
+      navigate("/");
+    } else {
+      console.error("Failed to update personal info");
+    }
     setIsEditing(false);
   };
 
@@ -63,7 +88,7 @@ const PersonalInfoForm: React.FC = () => {
         <div className="flex items-center justify-between">
           <h2 className="text-xl font-semibold">Personal Information</h2>
           <img
-            src="/avatar.png"
+            src={user?.picture}
             alt="User avatar"
             className="w-10 h-10 rounded-full"
           />
@@ -152,7 +177,23 @@ const PersonalInfoForm: React.FC = () => {
             placeholder="Enter your hometown"
           />
         </div>
-
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">
+            How do you feel about last minute plans?
+          </label>
+          <textarea
+            value={formState.who}
+            onChange={handleChange("who")}
+            disabled={!isEditing}
+            className={`w-full border rounded px-3 py-2 focus:outline-none focus:ring ${
+              isEditing
+                ? "focus:border-blue-500"
+                : "bg-gray-100 cursor-not-allowed"
+            }`}
+            placeholder="Enter Field 3"
+            rows={3}
+          />
+        </div>
         {/* Actions */}
         <div className="flex justify-end space-x-3">
           <button
@@ -165,6 +206,7 @@ const PersonalInfoForm: React.FC = () => {
           {isEditing && (
             <button
               type="submit"
+              onClick={handleSubmit}
               className="flex items-center px-4 py-2 bg-black text-white rounded hover:bg-gray-900 transition"
             >
               <FaSave className="mr-2" /> Save Changes
@@ -175,5 +217,3 @@ const PersonalInfoForm: React.FC = () => {
     </div>
   );
 };
-
-export default PersonalInfoForm;

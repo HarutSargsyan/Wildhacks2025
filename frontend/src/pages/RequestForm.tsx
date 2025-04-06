@@ -80,7 +80,7 @@ export default () => {
   };
 
   return (
-    <div className="max-w-lg mx-auto p-6 bg-white rounded-xl shadow space-y-6">
+    <div className="m-10 max-w-lg mx-auto p-6 bg-white rounded-xl shadow space-y-6">
       {/* Mood */}
       <div>
         <p className="mb-2 font-medium text-gray-700">What’s your mood?</p>
