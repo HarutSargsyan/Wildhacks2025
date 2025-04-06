@@ -30,7 +30,7 @@ pip install -r requirements.txt
 - Enable the Google+ API
 - Create OAuth 2.0 credentials
 - Add authorized redirect URIs:
-  - `http://localhost:5000/api/auth/callback` (for development)
+  - `http://localhost:5000/auth-callback` (for development)
   - Your production callback URL
 
 ## Running the Application
@@ -50,8 +50,8 @@ The server will start at `http://localhost:5000`
 ## API Endpoints
 
 ### Authentication
-- `GET /api/auth/google`: Initiate Google OAuth flow
-- `GET /api/auth/callback`: Handle Google OAuth callback
+- `GET /auth/google`: Initiate Google OAuth flow
+- `GET /auth-callback`: Handle Google OAuth callback
 
 ### User
 - `GET /api/user/profile`: Get user profile (requires authentication)
