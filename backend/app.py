@@ -313,6 +313,7 @@ client = MongoClient(MONGO_URL)
 db = client['NightSpot']
 waiting_users_collection = db['waiting_users']
 events_collection = db['events']
+locations_collection = db['locations']  # Add locations collection
 
 
 def serialize_doc(doc):
@@ -396,7 +397,20 @@ def find_eligible_group(users, group_size=5, threshold=1.0):
             return list(group)
     return None
 
-def create_calendar_invite(meeting_time, group_members):
+def get_random_location():
+    """Get a random location from the locations collection"""
+    try:
+        # Use MongoDB's aggregation pipeline to get a random document
+        pipeline = [{"$sample": {"size": 1}}]
+        location = list(locations_collection.aggregate(pipeline))
+        if location:
+            return location[0]
+        return {"name": "Evanston", "address": "1501 Maple Ave, Evanston, IL 60201"}  # Default fallback
+    except Exception as e:
+        print(f"Error getting random location: {str(e)}")
+        return {"name": "Evanston", "address": "1501 Maple Ave, Evanston, IL 60201"}  # Default fallback
+
+def create_calendar_invite(meeting_time, group_members, location):
     """Create a calendar invite for the event"""
     cal = Calendar()
     cal.add('prodid', '-//NightSpot Event//nightspot.com//')
@@ -417,11 +431,15 @@ def create_calendar_invite(meeting_time, group_members):
     event.add('dtstart', start_time)
     event.add('dtend', end_time)
     
-    # Add description with group members
-    description = "Your NightSpot group meetup!\n\nGroup Members:\n"
+    # Add description with group members and location
+    description = "Your NightSpot group meetup!\n\nLocation:\n"
+    description += f"{location['name']}\n{location['address']}\n\nGroup Members:\n"
     for member in group_members:
         description += f"- {member['name']}\n"
     event.add('description', description)
+    
+    # Add location
+    event.add('location', f"{location['name']} - {location['address']}")
     
     cal.add_component(event)
     return cal.to_ical()
@@ -429,8 +447,11 @@ def create_calendar_invite(meeting_time, group_members):
 def send_group_emails(group, meeting_time, event_id):
     """Send emails to all group members with calendar invite"""
     try:
-        # Create calendar invite
-        calendar_invite = create_calendar_invite(meeting_time, group)
+        # Get a random location for the meetup
+        location = get_random_location()
+        
+        # Create calendar invite with location
+        calendar_invite = create_calendar_invite(meeting_time, group, location)
         
         # Connect to SMTP server
         server = smtplib.SMTP(SMTP_SERVER, SMTP_PORT)
@@ -448,6 +469,10 @@ def send_group_emails(group, meeting_time, event_id):
             body = f"""Hi {user['name']},
 
 Great news! We've found your perfect group for a night out!
+
+Meeting Location:
+{location['name']}
+{location['address']}
 
 Your group is scheduled to meet at {meeting_time}.
 
@@ -470,10 +495,10 @@ Your group members are:
             server.send_message(msg)
         
         server.quit()
-        return True
+        return True, location
     except Exception as e:
         print(f"Error sending emails: {str(e)}")
-        return False
+        return False, None
 
 @app.route('/join', methods=['POST'])
 def join_queue():
@@ -518,16 +543,17 @@ def join_queue():
             eligible_ids = [user['id'] for user in eligible_group]
             waiting_users_collection.delete_many({"id": {"$in": eligible_ids}})
             
+            # Send emails to all group members and get the location
+            email_sent, location = send_group_emails(eligible_group, meeting_time, str(uuid.uuid4()))
+            
             # Create and store an event document
             event_doc = {
                 "event_id": str(uuid.uuid4()),
                 "users": eligible_group,
-                "meeting_time": meeting_time
+                "meeting_time": meeting_time,
+                "location": location
             }
             events_collection.insert_one(event_doc)
-            
-            # Send emails to all group members
-            email_sent = send_group_emails(eligible_group, meeting_time, event_doc["event_id"])
             
             return jsonify({
                 "event": event_doc, 
