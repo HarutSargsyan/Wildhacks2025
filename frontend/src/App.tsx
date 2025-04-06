@@ -13,6 +13,8 @@ import CallbackPage from "./pages/Callback";
 import RequestForm from "./pages/RequestForm"; // your protected UI
 import Navbar from "./components/NavBar";
 import PersonalInfo from "./pages/PersonalInfo";
+import WaitingPage from "./pages/WaitingPage";
+import MatchPage from "./pages/MatchPage";
 
 export default () => {
   const { user } = useAuth();
@@ -50,6 +52,22 @@ export default () => {
               ) : (
                 <Navigate to="/onboarding" />
               )}
+            </PrivateRoute>
+          }
+        />
+        <Route
+          path="/waiting"
+          element={
+            <PrivateRoute>
+              <WaitingPage />
+            </PrivateRoute>
+          }
+        />
+        <Route
+          path="/match"
+          element={
+            <PrivateRoute>
+              <MatchPage />
             </PrivateRoute>
           }
         />

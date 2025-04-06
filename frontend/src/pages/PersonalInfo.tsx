@@ -20,7 +20,7 @@ interface PersonalInfo {
   gender: Gender;
   race: Race;
   hometown: string;
-  who: string;
+  questions: [string, string][]; // Array of [question, answer] pairs
 }
 
 const genderOptions: Gender[] = ["", "Male", "Female", "Non‑binary", "Other"];
@@ -34,16 +34,21 @@ const raceOptions: Race[] = [
   "Other",
 ];
 
-export default () => {
+const PersonalInfo = () => {
   const [formState, setFormState] = useState<PersonalInfo>({
     age: "",
     gender: "",
     race: "",
     hometown: "",
-    who: "",
+    questions: [
+      ['What are your hobbies?', ''],
+      ['What is your ideal hangout?', ''],
+      ['How do you feel about last minute plans?', '']
+    ]
   });
-
   const [isEditing, setIsEditing] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const { setUser, user } = useAuth();
 
@@ -52,31 +57,53 @@ export default () => {
   }, [user]);
 
   const navigate = useNavigate();
-  const handleChange =
-    (key: keyof PersonalInfo) =>
-    (
-      e: ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>
-    ) => {
-      setFormState((prev) => ({ ...prev, [key]: e.target.value }));
-    };
 
-  const handleEditToggle = () => setIsEditing((prev) => !prev);
+  const handleChange = (key: keyof PersonalInfo) => (e: ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
+    if (key === 'questions') {
+      const index = parseInt(e.target.name);
+      const value = e.target.value;
+      setFormState(prev => ({
+        ...prev,
+        questions: prev.questions.map((q, i) => i === index ? [q[0], value] : q)
+      }));
+    } else {
+      setFormState(prev => ({ ...prev, [key]: e.target.value }));
+    }
+  };
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
+    setIsLoading(true);
+    setError(null);
 
-    const res = await axios.put(
-      `http://localhost:5001/users/${user?.email}`,
-      formState
-    );
-    if (res.status === 200) {
-      console.log("res", res);
-      setUser(res.data.data);
+    try {
+      if (!user?.email) {
+        throw new Error('No authenticated user found');
+      }
+
+      const response = await fetch(`http://localhost:5001/users/${user.email}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(formState),
+        credentials: 'include'
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to update profile');
+      }
+
+      const data = await response.json();
+      console.log('Profile updated:', data);
+      setUser(data.data);
       navigate("/");
-    } else {
-      console.error("Failed to update personal info");
+      setIsEditing(false);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'An error occurred');
+    } finally {
+      setIsLoading(false);
     }
-    setIsEditing(false);
   };
 
   return (
@@ -136,7 +163,7 @@ export default () => {
           </select>
         </div>
 
-        {/* Race */}
+        {/* Race
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">
             Race
@@ -157,7 +184,7 @@ export default () => {
               </option>
             ))}
           </select>
-        </div>
+        </div> */}
 
         {/* Hometown */}
         <div>
@@ -177,43 +204,58 @@ export default () => {
             placeholder="Enter your hometown"
           />
         </div>
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
-            How do you feel about last minute plans?
-          </label>
-          <textarea
-            value={formState.who}
-            onChange={handleChange("who")}
-            disabled={!isEditing}
-            className={`w-full border rounded px-3 py-2 focus:outline-none focus:ring ${
-              isEditing
-                ? "focus:border-blue-500"
-                : "bg-gray-100 cursor-not-allowed"
-            }`}
-            placeholder="Enter Field 3"
-            rows={3}
-          />
+
+        {/* Questions */}
+        <div className="space-y-4">
+          {formState.questions.map(([question, answer], index) => (
+            <div key={index} className="space-y-2">
+              <label className="block text-sm font-medium text-gray-700">
+                {question}
+              </label>
+              <textarea
+                name={index.toString()}
+                value={answer}
+                onChange={handleChange("questions")}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
+                rows={4}
+                disabled={!isEditing}
+                placeholder={`Enter your answer for: ${question}`}
+              />
+            </div>
+          ))}
         </div>
-        {/* Actions */}
-        <div className="flex justify-end space-x-3">
-          <button
-            type="button"
-            onClick={handleEditToggle}
-            className="flex items-center px-4 py-2 border rounded hover:bg-gray-100 transition"
-          >
-            <FaEdit className="mr-2" /> {isEditing ? "Cancel" : "Edit"}
-          </button>
-          {isEditing && (
+
+        <div className="flex justify-end space-x-4">
+          {!isEditing ? (
             <button
-              type="submit"
-              onClick={handleSubmit}
-              className="flex items-center px-4 py-2 bg-black text-white rounded hover:bg-gray-900 transition"
+              type="button"
+              onClick={() => setIsEditing(true)}
+              className="px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
             >
-              <FaSave className="mr-2" /> Save Changes
+              Edit
             </button>
+          ) : (
+            <>
+              <button
+                type="button"
+                onClick={() => setIsEditing(false)}
+                className="px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                disabled={isLoading}
+                className="px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50"
+              >
+                {isLoading ? 'Saving...' : 'Save Changes'}
+              </button>
+            </>
           )}
         </div>
       </form>
     </div>
   );
 };
+
+export default PersonalInfo;

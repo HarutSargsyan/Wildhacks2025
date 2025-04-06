@@ -14,7 +14,11 @@ export interface User {
   email: string;
   name: string;
   picture?: string;
-  is_onboarded: boolean;
+  is_onboarded?: boolean;
+  extroversion?: number;
+  openness?: number;
+  spontaneity?: number;
+  energy_level?: number;
 }
 
 export interface AuthContextType {
@@ -52,26 +56,39 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({
           navigate("/onboarding");
         }
       })
-      .catch(() => {
-        setUser(null);
-        setToken(null);
+      .catch((error) => {
+        // If we get a 401, clear the session and redirect to login
+        if (error.response?.status === 401) {
+          setUser(null);
+          setToken(null);
+          navigate("/login");
+        } else {
+          console.error("Error checking auth status:", error);
+        }
       })
       .finally(() => setLoading(false));
-  }, []);
+  }, [navigate]);
 
   const login = () => {
     window.location.href =
-      "http://localhost:5001/api/auth/google?redirect=http://localhost:5173/auth-callback";
+      "http://localhost:5001/auth/google?redirect=http://localhost:5173/auth-callback";
   };
 
   const logout = async () => {
-    await axios.post(
-      "http://localhost:5001/auth/logout",
-      {},
-      { withCredentials: true }
-    );
-    setUser(null);
-    setToken(null);
+    try {
+      await axios.post(
+        "http://localhost:5001/auth/logout",
+        {},
+        {
+          withCredentials: true,
+        }
+      );
+      setUser(null);
+      setToken(null);
+      navigate("/");
+    } catch (err) {
+      console.error("Logout failed", err);
+    }
   };
 
   /**
